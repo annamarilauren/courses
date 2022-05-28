@@ -103,8 +103,8 @@ class Susi():
                     ets[d] = efloor + transpi + interc                             # evapotranspiration components 
                     
                     
-                    if d%365==0: print ('  - day #', d, ' hdom ', hc, ' m, ',  
-                                        'LAI ', LAI, ' m2 m-2')
+                    #if d%365==0: print ('  - day #', d, ' hdom ', hc, ' m, ',  
+                    #                    'LAI ', LAI, ' m2 m-2')
         
                     #--------Soil hydrology-----------------
                     stp.run_timestep(d, h0ts_west[d], h0ts_east[d], stpout['deltas'][r, d,:], moss)  # strip/peat hydrology

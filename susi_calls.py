@@ -29,7 +29,7 @@ end_yr = end_date.year
 yrs = (end_date - start_date).days/365.25
 days = (end_date - start_date).days
 
-sarkaSim = 50.                                                                  # strip width, ie distance between ditches, m
+sarkaSim = 40.                                                                  # strip width, ie distance between ditches, m
 n = int(sarkaSim / 2)                                                           # number of computation nodes in the strip
 hc = 21.0
 LAI = 6.5

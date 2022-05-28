@@ -63,7 +63,7 @@ class StripHydrology():
         self.H = self.ele + self.dwt                                             # head with respect to absolute reference level, m
         #self.sruno = 0.
         self.roff = 0.
-        print ('Resetting strip scenario')
+        #print ('Resetting strip scenario')
 
 
     def run_timestep(self,d, h0ts_west, h0ts_east, p, moss):

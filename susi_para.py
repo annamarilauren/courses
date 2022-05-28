@@ -93,7 +93,7 @@ def get_susi_para(wlocation=None, peat=None, photosite='All data', folderName=No
         'ditch depth east': [-0.3, -0.6, -0.9],
         'ditch depth 20y west': [-0.3, -0.6, -0.9],                                            #ojan syvyys 20 vuotta simuloinnin aloituksesta
         'ditch depth 20y east': [-0.3, -0.6, -0.9],                                            #ojan syvyys 20 vuotta simuloinnin aloituksesta
-        'scenario name': ['30', '50', '70'], #kasvunlisaykset
+        'scenario name': ['30', '60', '90'], #kasvunlisaykset
         'initial h': -0.2, 'slope': 0.0, 
         'peat type':['A','A','A','A','A','A','A','A'], 
         'peat type bottom':['A'],'anisotropy':10.,

@@ -9,9 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
-import matplotlib.pylab as plt
 from scipy.interpolate import InterpolatedUnivariateSpline as interS
-from pyproj import CRS, Transformer
 
 
 def peat_hydrol_properties(x, unit='g/cm3', var='bd', ptype='A'):

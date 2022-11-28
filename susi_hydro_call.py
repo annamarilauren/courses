@@ -59,6 +59,6 @@ def run_hydro(vuosi = 2000, sarkaleveys = 40.0, turve = 'carex', puusto = 'vartt
 
   susi = Susi()
   susi.run_susi(forc, cpara, org_para, spara, start_yr, end_yr, hc, LAI)
-  output.clear()
+  #output.clear()
   draw_figs(susi.stpout, start_yr, days, start_date)
   return susi.stpout

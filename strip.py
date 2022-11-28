@@ -6,7 +6,7 @@ Created on Sat Jan 19 19:59:31 2019
 """
 import numpy as np
 from susi_utils import peat_hydrol_properties, CWTr, hydrCond
-from  fipy import *
+#from  fipy import *
 
 class StripHydrology():
     def __init__(self, spara):

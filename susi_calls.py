@@ -52,4 +52,4 @@ susi = Susi()
 
 susi.run_susi(forc, cpara, org_para, spara, start_yr, end_yr, hc, LAI)
 
-draw_figs(susi.stpout, start_yr, days, start_date)
+#draw_figs(susi.stpout, start_yr, days, start_date)

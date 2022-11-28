@@ -178,7 +178,64 @@ def wrc(pF, x=None, var=None):
     else: y=psi_theta(x) # 'Psi-->Theta'          
     return y
 
+def hydrCond(pF, x=None, var=None, Ksat=1):
+    """
+    Hydraulic conductivity following vanGenuchten-Mualem \n
+    IN:
+        pF - dict or list
+        x - Theta [vol/vol] or Psi [m H2O]
+        var = 'Th' if x in [vol/vol]\n
+        Ksat - saturated hydraulic conductivity [units]\n
+    OUT:
+        Kh - hydraulic conductivity ( if Ksat ~=1 then in [units], else relative [-]) \n
+    """
+    import matplotlib.pylab as plt
+    if type(pF) is dict: #dict input
+        alfa=np.array( pF['alpha']); n=np.array( pF['n'])
+        m= 1.0 -np.divide(1.0,n)
         
+    else: #list input
+        pF=np.array(pF, ndmin=1).T #ndmin=1 needed for indexing of 0-dim arrays
+        alfa=pF[2]; n=pF[3]         
+        m=1.0 - np.divide(1.0,n)
+
+    def kRel(x):
+        nm=(1 - abs(alfa*x)**(n-1) * (1 + abs(alfa*x)**n)**(-m))**2
+        dn=(1 + abs(alfa*x)**n)**(m/2.0)
+        r=nm/dn
+        return r
+
+    if x is None and np.size(alfa)==1:  #draws pf-curve
+        xx=-np.logspace(-4,5,100) #cm
+        yy=kRel(xx)
+        fig=plt.figure()
+        fig.suptitle('Hydr. cond. (vanGenuchten-Mualem)', fontsize=16)
+        #ttext=str(pF).translate(None,"{}'")
+        ttext= r'$K_{sat}=$' +str(Ksat) +r', $\alpha=$'+str(alfa)+ ', n='+str(n)
+
+        plt.title(ttext, fontsize=14)
+        plt.semilogx(-xx,yy,'g-')
+
+        plt.ylabel(r'K_{sat}', fontsize=14) 
+        plt.xlabel('$\psi$ $(cm)$', fontsize=14)
+
+        del xx, yy
+        return None
+        
+    elif x is None: 
+        print ('hydrCond: To draw curve give only one pF -parameter set')
+        return None
+        
+    # this computes and returns    
+    x=np.array(x)
+    if x is not None and var is 'Th': x=wrc(pF,x=x, var='Th')
+
+    #If psi is positive, set to zero (saturated conductivity)
+    if x is not None and var is 'Psii': x[x>0] = 0
+
+    Kh=Ksat*kRel(100.0*x)
+    
+    return Kh        
 
 def read_FMI_weather(ID, start_date,end_date, sourcefile=None):
     """ 

@@ -5,14 +5,15 @@ Created on Sat Jan 19 19:59:31 2019
 @author: lauren
 """
 import numpy as np
-from susi_utils import peat_hydrol_properties, CWTr
-
+from susi_utils import peat_hydrol_properties, CWTr, hydrCond
+from  fipy import *
 
 class StripHydrology():
     def __init__(self, spara):
         self.nLyrs = spara['nLyrs']                                                 # number of soil layers
         dz = np.ones(self.nLyrs)*spara['dzLyr']                                     # thickness of layers, m
-        z = np.cumsum(dz)-dz/2.                                                # depth of the layer center point, m 
+        self.dz = dz
+        self.z = np.cumsum(dz)-dz/2.                                                # depth of the layer center point, m 
         self.spara = spara
         if spara['vonP']:
             lenvp=len(spara['vonP top'])    
@@ -30,12 +31,12 @@ class StripHydrology():
             self.pF, self.Ksat = peat_hydrol_properties(bd, var='bd', ptype=ptype) # peat hydraulic properties after Päivänen 1973    
         
         for n in range(self.nLyrs):
-            if z[n] < 0.41: 
+            if self.z[n] < 0.41: 
                 self.Ksat[n]= self.Ksat[n]*spara['anisotropy']
             else:
                 self.Ksat[n]= self.Ksat[n]*1.
                 
-        self.dwtToSto, self.stoToGwl, self.dwtToTra, self.C, self.dwtToRat, self.dwtToAfp = CWTr(self.nLyrs, z, dz, self.pF, 
+        self.dwtToSto, self.stoToGwl, self.dwtToTra, self.C, self.dwtToRat, self.dwtToAfp = CWTr(self.nLyrs, self.z, dz, self.pF, 
                                                                self.Ksat, direction='negative') # interpolated storage, transmissivity, diff water capacity, and ratio between aifilled porosoty in rooting zone to total airf porosity  functions
         
     
@@ -55,6 +56,28 @@ class StripHydrology():
         self.Kmap = np.tile(self.Ksat, (self.n,1))                             # Ksat map (col, lyr)
         self.residence_time = np.zeros(self.n)                                 # residence time from column to the ditch, days
         
+        #------------ Advection training-----------------------------------
+        """
+        self.timestep = 0 
+        self.u0 = np.zeros((self.n, self.nLyrs), dtype=float)
+        self.u0[5:-5, :] = 1.0 
+
+        self.mesh = Grid2D(nx=self.nLyrs,ny=self.n, dx=spara['dzLyr'], dy=self.dy)  # construct computation mesh in fipy
+        self.X,self.Y= self.mesh.cellCenters                                                           # X is vertical direction, Y horizontal
+        self.Xf, self.Yf  = self.mesh.faceCenters                                                      # face ce
+
+        self.phi_cell = CellVariable(mesh = self.mesh, name="hydraulic head at cell", value=0.0)
+        
+        self.HfaceGrad = FaceVariable(mesh = self.mesh, name = "hydraulic head face gradient", value = 0.0 )
+        self.Q_faces = FaceVariable(mesh=self.mesh, name = "flow at faces", value = 0.0 )
+        self.conc = CellVariable(mesh=self.mesh, name="DOC concentration",value=self.u0,hasOld=True)  # Solute concentration (mg/TOTAL volume)
+        self.vfield = CellVariable(mesh = self.mesh, name = "Water flow field", value = 0.0)
+        # adv_eq = (TransientTerm(var=conc) ==  (ExponentialConvectionTerm(coeff=convCoeff,var=conc)) - ((mask7v+mask8v) * flux_out).divergence - \
+        #   (mesh.facesLeft * flux_in).divergence) - ImplicitSourceTerm(coeff=gener_rate, var=conc) - ImplicitSourceTerm(coeff=ext_rate, var=conc)
+        self.convCoeff = FaceVariable(mesh=self.mesh,value=(0.,0.))                              # convection coefficient = "actual" water velocity (m/s)  
+        self.adv_eq = TransientTerm(var=self.conc) ==  -ExponentialConvectionTerm(coeff=self.convCoeff,var=self.conc)
+        """
+        #----------Until here------------------------------------------------
         print ('Peat strip initialized')
         
     def reset_domain(self):
@@ -131,6 +154,12 @@ class StripHydrology():
         self.air_ratio = self.dwtToRat(self.dwt)
         self.afp = self.dwtToAfp(self.dwt)
         #**************************************************
+        
+        #self.play_advection(h0ts_west, h0ts_east)
+        #self.advection_fipy(h0ts_west, h0ts_east)
+        
+        
+        #self.timestep+=1
         
         return self.dwt, self.H, self.roff, self.air_ratio, self.afp
 
@@ -250,7 +279,122 @@ class StripHydrology():
        timetoditch[self.ixeast] = np.flip(np.cumsum(np.flip(rtime[self.ixeast]*-1)))
    
        self.residence_time = timetoditch
+    
+    """
+    def advection_fipy(self, h0ts_west, h0ts_east):
+        
+        u = np.zeros((self.n, self.nLyrs), dtype=float)
+        psi = np.zeros((self.n, self.nLyrs), dtype=float)
+        Kh = np.zeros((self.n, self.nLyrs), dtype=float)
+        gr = np.zeros((self.n, self.nLyrs), dtype=float)
+        vx = np.zeros((self.n, self.nLyrs), dtype=float)
+        vz = np.zeros((self.n, self.nLyrs), dtype=float)
+        
+        
+        for c in range(self.n):
+            psi0 = self.H[c]
+            psi[c,:] = self.z - psi0
+            Kh[c,:] = hydrCond(self.pF, x=psi[c,:], var = 'Psii', Ksat = self.Ksat)
+        
+        #----- Jatka tästä
+        self.phi_cell.setValue()
+        
+        print (self.z)
+        print (psi - self.z)
+        import sys; sys.exit()
+        #grvertical = -np.gradient(psi, 0.05, axis = 1)
+        #grhorizontal = -np.gradient(psi, 2, axis = 0)
+
+        ixwest = np.where(-h0ts_west > self.z) 
+        ixeast = np.where(-h0ts_east > self.z) 
+        
+        Kh[0, ixwest] = 0.0 
+        Kh[-1, ixeast] = 0.0 
+        Kh[:,-1] = 0.0
+        
+        gr = np.gradient(psi)
+        grhorizontal = gr[0]/self.dy
+        grvertical = gr[1]/self.dz
+        vz = (grhorizontal * Kh ) / self.pF[:, 0] 
+        vx = (-grvertical*Kh) / self.pF[:, 0]
+        self.Hcell.setValue(np.ravel(psi))
+        
+        self.conc.updateOld()
+        
+        self.convCoeff.setValue((np.ravel(vz),np.ravel(vx)))
+        self.adv_eq.solve(var=conc,dt=dt)
+        
+    def play_advection(self, h0ts_west, h0ts_east):
+        dt = 1
        
+        u = np.zeros((self.n, self.nLyrs), dtype=float)
+        psi = np.zeros((self.n, self.nLyrs), dtype=float)
+        Kh = np.zeros((self.n, self.nLyrs), dtype=float)
+        gr = np.zeros((self.n, self.nLyrs), dtype=float)
+        vx = np.zeros((self.n, self.nLyrs), dtype=float)
+        vz = np.zeros((self.n, self.nLyrs), dtype=float)
+        
+        
+        for c in range(self.n):
+            psi0 = self.H[c]
+            psi[c,:] = self.z - psi0
+            Kh[c,:] = hydrCond(self.pF, x=psi[c,:], var = 'Psii', Ksat = self.Ksat)
+        
+        #grvertical = -np.gradient(psi, 0.05, axis = 1)
+        #grhorizontal = -np.gradient(psi, 2, axis = 0)
+
+        ixwest = np.where(-h0ts_west > self.z) 
+        ixeast = np.where(-h0ts_east > self.z) 
+        
+        Kh[0, ixwest] = 0.0 
+        Kh[-1, ixeast] = 0.0 
+        Kh[:,-1] = 0.0
+        
+        gr = np.gradient(psi)
+        grhorizontal = gr[0]/self.dy
+        grvertical = gr[1]/self.dz
+        vz = (grhorizontal * Kh * 86400) / self.pF[:, 0] 
+        vx = (-grvertical*Kh*86400) / self.pF[:, 0]
+        
+        # print (self.pF[:, 0])
+        # print ('west', sum(vz[0,:]))
+        # print ('east', sum(vz[-1, :]))
+        # print ('bottom', sum(vx[:, -1]))
+        def do_timestep(u0, u, dt):
+            # forward-difference in time, central-difference in space numerical
+            # solution to the 2D advection equation
+            # u0 in the beginning of timestep, u after the timestep
+            u[1:-1, 1:-1] = u0[1:-1, 1:-1] - dt * (
+                  vx[1:-1, 1:-1] * (u0[1:-1, 2:] - u0[1:-1, :-2])/2/2.0 +  # vx.du/dx
+                  vz[1:-1, 1:-1] * (u0[2:, 1:-1] - u0[:-2, 1:-1])/2/0.05)   # vy.du/dy
+
+            u0 = u.copy()
+            return u0, u
+
+
+        import matplotlib.pyplot as plt
+        #X, Z = np.meshgrid(np.linspace(1,40,self.n), np.linspace(0.025,1.5, self.nLyrs))
+        
+        #plt.quiver( X, -Z, vx.T, vz.T*0.05)
+        #print (grhorizontal)
+        
+        mfig = [0, 5, 10, 15, 20, 30, 40, 100, 150, 200, 250, 300]
+        
+        for sdt in range(500):    
+            self.u0, u = do_timestep(self.u0, u, dt/1000.)
+        
+        if self.timestep in mfig:
+            fig = plt.figure()
+            
+            ax = fig.add_subplot(111)
+            im = ax.imshow(u.copy().T, extent=[0,40,-1.5,0], aspect = 6, vmin = 0, vmax=1)
+            ax.set_axis_off()
+            ax.set_title('{:.1f} days'.format(self.timestep))
+            plt.show()
+            print (self.timestep, np.sum(self.u0, axis=(0,1)))
+        #import sys; sys.exit()
+
+    """
 def drain_depth_development(length, hdr, hdr20y):
     """
     Computes daily level of drain bottom thru the time of the simulation. Model adjusted from Hannu Hökkä drain model.

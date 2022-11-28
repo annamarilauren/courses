@@ -8,7 +8,6 @@ from figs import draw_figs
 from susi_utils import  read_FMI_weather
 from susi_para import get_susi_para
 from susi_main import Susi 
-from google.colab import output
 import numpy as np                         # Numerical python, superhero of computing
 from datetime import datetime
 
@@ -59,6 +58,5 @@ def run_hydro(vuosi = 2000, sarkaleveys = 40.0, turve = 'carex', puusto = 'vartt
 
   susi = Susi()
   susi.run_susi(forc, cpara, org_para, spara, start_yr, end_yr, hc, LAI)
-  output.clear()
   draw_figs(susi.stpout, start_yr, days, start_date)
   return susi.stpout
